@@ -1,0 +1,24 @@
+query RepoView {
+  viewer {
+    url
+    repositories(privacy: PUBLIC, orderBy: {field: CREATED_AT, direction: DESC}, first: 100) {
+      nodes {
+        name
+        url
+        primaryLanguage {
+          name
+        }
+        languages(first: 5) {
+          edges {
+            node {
+              id
+              name
+            }
+            size
+          }
+        }
+      }
+    }
+  }
+}
+
