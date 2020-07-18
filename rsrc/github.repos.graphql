@@ -1,7 +1,7 @@
-query RepoView {
+query RepoView($top: Int!) {
   viewer {
     url
-    repositories(privacy: PUBLIC, orderBy: {field: CREATED_AT, direction: DESC}, first: 100) {
+    repositories(orderBy: {field: CREATED_AT, direction: DESC}, first: $top) {
       nodes {
         name
         url
@@ -21,4 +21,3 @@ query RepoView {
     }
   }
 }
-

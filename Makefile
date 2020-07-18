@@ -1,10 +1,10 @@
 all: clean build-lambda-release
 
 clean:
-	rm -rf target
+	rm -rf target/x86_64-unknown-linux-musl
 
 target/x86_64-unknown-linux-musl/release/bootstrap:
-	cargo build --release --target x86_64-unknown-linux-musl
+	OPENSSL_DIR=/usr/local/opt/openssl cargo build --release --target x86_64-unknown-linux-musl
 
 
 
