@@ -89,7 +89,7 @@ use std::error::Error;
 
 #[derive(Deserialize, Clone)]
 struct APIRequest {
-    #[serde(rename = "firstName")]
+    #[serde(rename = "top")]
     top: i64
 }
 
