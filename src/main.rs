@@ -101,10 +101,12 @@ struct APIResponse  {
 fn request_handler(e: APIRequest, c: lambda::Context) -> Result<APIResponse, HandlerError> {
     if e.top == 0 {
         error!("Requesting zero github skills in request {}", c.aws_request_id);
-        return Err(c.new_error("No skills requested."));
+        return Err("No skills requested.".into());
     }
-    let repos = fetch_repos(5)
-        .map_err(|e| c.new_error(e.to_string().as_str()))?;
+    let repos = match fetch_repos(5){
+        Ok(value) => value,
+        Err(err) => return Err(err.to_string().as_str().into())
+    };
     let skills = extract_skills(repos);
 
     Ok(APIResponse { skills })

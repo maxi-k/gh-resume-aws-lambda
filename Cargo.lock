@@ -279,7 +279,7 @@ dependencies = [
  "proc-macro2 1.0.18",
  "quote 1.0.7",
  "syn 1.0.34",
- "synstructure",
+ "synstructure 0.12.4",
 ]
 
 [[package]]
@@ -707,36 +707,75 @@ dependencies = [
 
 [[package]]
 name = "lambda_runtime"
-version = "0.1.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b8dd6cb1355fff0ff04b7c43c5d5dace2888373e13ad68e992bfe896c26ef6f"
+checksum = "077b8819fe6998266342efdc5154192551143f390ab758007cc7421992e61b07"
 dependencies = [
- "backtrace",
- "chrono",
- "hyper 0.12.35",
- "lambda_runtime_client",
+ "failure",
+ "lambda_runtime_core",
  "log",
  "serde",
  "serde_derive",
  "serde_json",
- "simple_logger",
  "tokio 0.1.22",
 ]
 
 [[package]]
 name = "lambda_runtime_client"
-version = "0.1.0"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b76723be69f7216b93d36f5da6f33b1d275ecb94a4355c845d5cb73df6922677"
+checksum = "f5e64758b587f1d07b6ca4814a3bc0f3db48c89cc3c895db43a23c690855b370"
 dependencies = [
- "backtrace",
+ "failure",
  "http 0.1.21",
  "hyper 0.12.35",
+ "lambda_runtime_errors",
  "log",
  "serde",
  "serde_derive",
  "serde_json",
  "tokio 0.1.22",
+]
+
+[[package]]
+name = "lambda_runtime_core"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da1cb59e060c1068cfa386b58c202a4381c509ace85a1eadab505164f0563ca5"
+dependencies = [
+ "backtrace",
+ "chrono",
+ "failure",
+ "hyper 0.12.35",
+ "lambda_runtime_client",
+ "lambda_runtime_errors",
+ "log",
+ "rustc_version",
+ "tokio 0.1.22",
+]
+
+[[package]]
+name = "lambda_runtime_errors"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93b63ea3688df164aaa5643c5f3291cc481366d624729deb3c4dc85ee65ac20a"
+dependencies = [
+ "failure",
+ "lambda_runtime_errors_derive",
+ "log",
+ "serde_json",
+]
+
+[[package]]
+name = "lambda_runtime_errors_derive"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38fa619ec6f1ee2371a109683d251035c83f01b8ffc10f4aa46de821836a7baf"
+dependencies = [
+ "proc-macro2 0.4.30",
+ "quote 0.6.13",
+ "syn 0.15.44",
+ "synstructure 0.10.2",
 ]
 
 [[package]]
@@ -1386,6 +1425,18 @@ dependencies = [
  "proc-macro2 1.0.18",
  "quote 1.0.7",
  "unicode-xid 0.2.1",
+]
+
+[[package]]
+name = "synstructure"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02353edf96d6e4dc81aea2d8490a7e9db177bf8acb0e951c24940bf866cb313f"
+dependencies = [
+ "proc-macro2 0.4.30",
+ "quote 0.6.13",
+ "syn 0.15.44",
+ "unicode-xid 0.1.0",
 ]
 
 [[package]]
