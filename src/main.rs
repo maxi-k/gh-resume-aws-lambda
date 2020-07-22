@@ -33,10 +33,10 @@ type URI = String;
 )]
 struct RepoView;
 
-fn fetch_repos(number: i64) -> Result<repo_view::ResponseData, Box<dyn Error>>{
+fn fetch_repos(number: u16) -> Result<repo_view::ResponseData, Box<dyn Error>>{
     let api_token = env!("GITHUB_API_TOKEN");
     let client = Client::builder().user_agent("Maxi").build()?;
-    let query = RepoView::build_query(repo_view::Variables { top: number });
+    let query = RepoView::build_query(repo_view::Variables { top: number as i64 });
     let request = client
         .post("https://api.github.com/graphql")
         .bearer_auth(api_token)
@@ -57,7 +57,7 @@ use std::collections::HashMap;
 #[derive(Serialize, Clone, Debug)]
 struct Skill {
     name: String,
-    code_size: i64,
+    code_size: u64,
     color: String
 }
 
@@ -77,7 +77,7 @@ fn extract_skills(data: repo_view::ResponseData) -> Vec<Skill> {
                         name: lang.node.name.to_owned(),
                         code_size: 0,
                         color: lang.node.color.as_ref().unwrap_or(&default_color).to_string()
-                    }).code_size += lang.size
+                    }).code_size += lang.size as u64
                 }
             }
         }
@@ -93,8 +93,7 @@ use lambda::error::HandlerError;
 
 #[derive(Deserialize, Clone)]
 struct APIRequest {
-    #[serde(rename = "top")]
-    top: i64
+    top: Option<u16>
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -103,11 +102,12 @@ struct APIResponse  {
 }
 
 fn request_handler(e: APIRequest, c: lambda::Context) -> Result<APIResponse, HandlerError> {
-    if e.top == 0 {
+    let top = e.top.unwrap_or(20);
+    if top == 0 {
         error!("Requesting zero github skills in request {}", c.aws_request_id);
         return Err("No skills requested.".into());
     }
-    let repos = match fetch_repos(5){
+    let repos = match fetch_repos(top){
         Ok(value) => value,
         Err(err) => return Err(err.to_string().as_str().into())
     };
@@ -135,8 +135,23 @@ fn main() -> Result<(), Box<dyn Error>> {
 mod tests {
     use super::*;
     #[test]
-    fn returns_ok() {
-        let result = request_handler(APIRequest{ top: 2 }, Default::default());
+    fn handler_returns_ok_with_argument() {
+        let req = APIRequest{ top: Some(2) };
+        let result = request_handler(req, Default::default());
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn handler_returns_ok_without_argument() {
+        let req = APIRequest{ top: None };
+        let result = request_handler(req, Default::default());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn handler_returns_error_with_zero_argument() {
+        let req = APIRequest{ top: Some(0) };
+        let result = request_handler(req, Default::default());
+        assert!(result.is_err());
     }
 }
