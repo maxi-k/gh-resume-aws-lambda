@@ -11,8 +11,8 @@ query RepoView($top: Int!) {
         languages(first: 5) {
           edges {
             node {
-              id
               name
+              color
             }
             size
           }

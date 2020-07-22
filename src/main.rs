@@ -9,6 +9,8 @@ extern crate serde_derive;
 extern crate log;
 extern crate simple_logger;
 
+use std::error::Error;
+
 // --------------------------------------------------------------------------------
 // Load .env configuration at compile time
 // --------------------------------------------------------------------------------
@@ -55,7 +57,8 @@ use std::collections::HashMap;
 #[derive(Serialize, Clone, Debug)]
 struct Skill {
     name: String,
-    code_size: i64
+    code_size: i64,
+    color: String
 }
 
 fn extract_skills(data: repo_view::ResponseData) -> Vec<Skill> {
@@ -63,29 +66,30 @@ fn extract_skills(data: repo_view::ResponseData) -> Vec<Skill> {
         Some(nodes) => nodes,
         None => return vec![],
     };
-    let languages : HashMap<String, i64> = repos.iter().fold(HashMap::new(), |mut map, repo| {
-        if let Some(languages) = repo.as_ref().and_then(|r| r.languages.as_ref()).and_then(|l| l.edges.as_ref()) {
+    let default_color = "#000".to_string();
+    let skills : HashMap<String, Skill> = repos.iter().fold(HashMap::new(), |mut map, repo| {
+        if let Some(languages) = repo.as_ref()
+            .and_then(|r| r.languages.as_ref())
+            .and_then(|l| l.edges.as_ref()) {
             for opt_lang in languages {
                 if let Some(lang) = opt_lang {
-                    *(map.entry(lang.node.name.to_owned()).or_insert(0)) += lang.size;
+                    map.entry(lang.node.name.to_owned()).or_insert_with(|| Skill {
+                        name: lang.node.name.to_owned(),
+                        code_size: 0,
+                        color: lang.node.color.as_ref().unwrap_or(&default_color).to_string()
+                    }).code_size += lang.size
                 }
             }
         }
         map
     });
-    let mut skills = Vec::with_capacity(languages.len());
-    for (name, code_size) in languages {
-        skills.push(Skill { name, code_size });
-    }
-    skills.sort_by(|a, b| b.code_size.cmp(&a.code_size));
-    return skills;
+    skills.values().cloned().collect()
 }
 
 // --------------------------------------------------------------------------------
 // Lambda Handler
 // --------------------------------------------------------------------------------
 use lambda::error::HandlerError;
-use std::error::Error;
 
 #[derive(Deserialize, Clone)]
 struct APIRequest {
