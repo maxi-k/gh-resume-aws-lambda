@@ -16,4 +16,4 @@ target/lambda-rust.zip: target/lambda/release/bootstrap
 
 build-lambda-release: target/lambda-rust.zip
 
-.PHONY: all clean build-lambda-release build-docker
+.PHONY: all clean build-lambda-release 
