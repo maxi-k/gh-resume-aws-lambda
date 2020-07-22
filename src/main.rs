@@ -33,7 +33,7 @@ type URI = String;
 )]
 struct RepoView;
 
-fn fetch_repos(number: u16) -> Result<repo_view::ResponseData, Box<dyn Error>>{
+fn fetch_repos(number: u16) -> Result<repo_view::ResponseData, Box<dyn Error>> {
     let api_token = env!("GITHUB_API_TOKEN");
     let client = Client::builder().user_agent("Maxi").build()?;
     let query = RepoView::build_query(repo_view::Variables { top: number as i64 });
@@ -46,7 +46,7 @@ fn fetch_repos(number: u16) -> Result<repo_view::ResponseData, Box<dyn Error>>{
         Err("Error while fetching github API.".into())
     } else {
         Ok(body.data.expect("missing response data"))
-    }
+    };
 }
 
 // --------------------------------------------------------------------------------
@@ -58,7 +58,7 @@ use std::collections::HashMap;
 struct Skill {
     name: String,
     code_size: u64,
-    color: String
+    color: String,
 }
 
 fn extract_skills(data: repo_view::ResponseData) -> Vec<Skill> {
@@ -67,17 +67,18 @@ fn extract_skills(data: repo_view::ResponseData) -> Vec<Skill> {
         None => return vec![],
     };
     let default_color = "#000".to_string();
-    let skills : HashMap<String, Skill> = repos.iter().fold(HashMap::new(), |mut map, repo| {
+    let skills: HashMap<String, Skill> = repos.iter().fold(HashMap::new(), |mut map, repo| {
         if let Some(languages) = repo.as_ref()
             .and_then(|r| r.languages.as_ref())
             .and_then(|l| l.edges.as_ref()) {
             for opt_lang in languages {
                 if let Some(lang) = opt_lang {
-                    map.entry(lang.node.name.to_owned()).or_insert_with(|| Skill {
-                        name: lang.node.name.to_owned(),
-                        code_size: 0,
-                        color: lang.node.color.as_ref().unwrap_or(&default_color).to_string()
-                    }).code_size += lang.size as u64
+                    map.entry(lang.node.name.to_owned())
+                        .or_insert_with(|| Skill {
+                            name: lang.node.name.to_owned(),
+                            code_size: 0,
+                            color: lang.node.color.as_ref().unwrap_or(&default_color).to_string(),
+                        }).code_size += lang.size as u64
                 }
             }
         }
@@ -93,12 +94,12 @@ use lambda::error::HandlerError;
 
 #[derive(Deserialize, Clone)]
 struct APIRequest {
-    top: Option<u16>
+    top: Option<u16>,
 }
 
 #[derive(Serialize, Clone, Debug)]
-struct APIResponse  {
-    skills: Vec<Skill>
+struct APIResponse {
+    skills: Vec<Skill>,
 }
 
 fn request_handler(e: APIRequest, c: lambda::Context) -> Result<APIResponse, HandlerError> {
@@ -107,12 +108,11 @@ fn request_handler(e: APIRequest, c: lambda::Context) -> Result<APIResponse, Han
         error!("Requesting zero github skills in request {}", c.aws_request_id);
         return Err("No skills requested.".into());
     }
-    let repos = match fetch_repos(top){
+    let repos = match fetch_repos(top) {
         Ok(value) => value,
-        Err(err) => return Err(err.to_string().as_str().into())
+        Err(err) => return Err(err.to_string().as_str().into()),
     };
     let skills = extract_skills(repos);
-
     Ok(APIResponse { skills })
 }
 
@@ -120,10 +120,7 @@ fn request_handler(e: APIRequest, c: lambda::Context) -> Result<APIResponse, Han
 // Main Entrypoint
 // --------------------------------------------------------------------------------
 fn main() -> Result<(), Box<dyn Error>> {
-    simple_logger::init_with_level(log::Level::Info)?;
-    // Test handler
-    // let result = request_handler(APIRequest{ top: 100 }, Default::default());
-    // println!("{:?}", result);
+    simple_logger::init_with_level(log::Level::Warn)?;
     lambda!(request_handler);
     Ok(())
 }
@@ -136,21 +133,21 @@ mod tests {
     use super::*;
     #[test]
     fn handler_returns_ok_with_argument() {
-        let req = APIRequest{ top: Some(2) };
+        let req = APIRequest { top: Some(2) };
         let result = request_handler(req, Default::default());
         assert!(result.is_ok());
     }
 
     #[test]
     fn handler_returns_ok_without_argument() {
-        let req = APIRequest{ top: None };
+        let req = APIRequest { top: None };
         let result = request_handler(req, Default::default());
         assert!(result.is_ok());
     }
 
     #[test]
     fn handler_returns_error_with_zero_argument() {
-        let req = APIRequest{ top: Some(0) };
+        let req = APIRequest { top: Some(0) };
         let result = request_handler(req, Default::default());
         assert!(result.is_err());
     }
