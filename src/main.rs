@@ -36,7 +36,7 @@ struct RepoView;
 fn fetch_repos(number: u16) -> Result<repo_view::ResponseData, Box<dyn Error>> {
     let api_token = env!("GITHUB_API_TOKEN");
     let client = Client::builder().user_agent("Maxi").build()?;
-    let query = RepoView::build_query(repo_view::Variables { top_repo: number as i64, top_lang: 5 });
+    let query = RepoView::build_query(repo_view::Variables { top_repo: number as i64, top_lang: 7 });
     let request = client
         .post("https://api.github.com/graphql")
         .bearer_auth(api_token)
@@ -140,7 +140,7 @@ struct APIResponse {
 }
 
 fn request_handler(e: APIRequest, c: lambda::Context) -> Result<APIResponse, HandlerError> {
-    let top = e.top.unwrap_or(20);
+    let top = e.top.unwrap_or(50);
     if top == 0 {
         error!("Requesting zero github skills in request {}", c.aws_request_id);
         return Err("No skills requested.".into());

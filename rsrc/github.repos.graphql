@@ -1,7 +1,7 @@
 query RepoView($top_repo: Int!, $top_lang: Int!) {
   viewer {
     url
-    repositories(orderBy: {field: CREATED_AT, direction: DESC}, first: $top_repo) {
+    repositories(orderBy: {field: UPDATED_AT, direction: DESC}, first: $top_repo) {
       nodes {
         name
         url
@@ -16,7 +16,7 @@ query RepoView($top_repo: Int!, $top_lang: Int!) {
         }
       }
     }
-    repositoriesContributedTo(orderBy: {field: CREATED_AT, direction: DESC}, first: $top_repo) {
+    repositoriesContributedTo(orderBy: {field: UPDATED_AT, direction: DESC}, first: $top_repo) {
       nodes {
         name
         url
