@@ -1,14 +1,29 @@
-query RepoView($top: Int!) {
+query RepoView($top_repo: Int!, $top_lang: Int!) {
   viewer {
     url
-    repositories(orderBy: {field: CREATED_AT, direction: DESC}, first: $top) {
+    repositories(orderBy: {field: CREATED_AT, direction: DESC}, first: $top_repo) {
+      nodes {
+        name
+        url
+        languages(first: $top_lang, orderBy: {field: SIZE, direction: DESC}) {
+          edges {
+            node {
+              name
+              color
+            }
+            size
+          }
+        }
+      }
+    }
+    repositoriesContributedTo(orderBy: {field: CREATED_AT, direction: DESC}, first: $top_repo) {
       nodes {
         name
         url
         primaryLanguage {
           name
         }
-        languages(first: 5) {
+        languages(first: $top_lang, orderBy: {field: SIZE, direction: DESC}) {
           edges {
             node {
               name

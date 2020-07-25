@@ -36,7 +36,7 @@ struct RepoView;
 fn fetch_repos(number: u16) -> Result<repo_view::ResponseData, Box<dyn Error>> {
     let api_token = env!("GITHUB_API_TOKEN");
     let client = Client::builder().user_agent("Maxi").build()?;
-    let query = RepoView::build_query(repo_view::Variables { top: number as i64 });
+    let query = RepoView::build_query(repo_view::Variables { top_repo: number as i64, top_lang: 5 });
     let request = client
         .post("https://api.github.com/graphql")
         .bearer_auth(api_token)
@@ -53,6 +53,7 @@ fn fetch_repos(number: u16) -> Result<repo_view::ResponseData, Box<dyn Error>> {
 // Convert to appropriate response
 // --------------------------------------------------------------------------------
 use std::collections::HashMap;
+use std::convert::identity;
 
 #[derive(Serialize, Clone, Debug)]
 struct Skill {
@@ -61,27 +62,71 @@ struct Skill {
     color: String,
 }
 
-fn extract_skills(data: repo_view::ResponseData) -> Vec<Skill> {
-    let repos = match data.viewer.repositories.nodes {
-        Some(nodes) => nodes,
-        None => return vec![],
-    };
-    let default_color = "#000".to_string();
-    let skills: HashMap<String, Skill> = repos.iter().fold(HashMap::new(), |mut map, repo| {
-        if let Some(languages) = repo.as_ref()
-            .and_then(|r| r.languages.as_ref())
-            .and_then(|l| l.edges.as_ref()) {
-            for opt_lang in languages {
-                if let Some(lang) = opt_lang {
-                    map.entry(lang.node.name.to_owned())
-                        .or_insert_with(|| Skill {
-                            name: lang.node.name.to_owned(),
-                            code_size: 0,
-                            color: lang.node.color.as_ref().unwrap_or(&default_color).to_string(),
-                        }).code_size += lang.size as u64
-                }
-            }
+impl Skill {
+    fn add(&mut self, other: &Skill) {
+        self.code_size += other.code_size;
+    }
+}
+
+trait SkillSource {
+   fn get_skills(self) -> Box<dyn Iterator<Item = Skill>>;
+}
+
+static DEFAULT_COLOR: &str = "#000";
+
+impl SkillSource for repo_view::RepoViewViewerRepositories {
+
+    fn get_skills(self) -> Box<dyn Iterator<Item = Skill>> {
+        return if let Some(nodes) = self.nodes {
+            Box::new(
+                nodes.into_iter()
+                     .filter_map(identity)
+                     .flat_map(|r| r.languages)
+                     .flat_map(|l| l.edges)
+                     .flatten()
+                     .filter_map(identity)
+                     .map(|lang| Skill{
+                         name: lang.node.name.to_owned(),
+                         code_size: lang.size as u64,
+                         color: lang.node.color.as_ref().unwrap_or(&DEFAULT_COLOR.to_string()).to_string(),
+                     }))
+        } else {
+            Box::new(std::iter::empty())
         }
+    }
+}
+
+impl SkillSource for repo_view::RepoViewViewerRepositoriesContributedTo {
+
+    fn get_skills(self) -> Box<dyn Iterator<Item = Skill>> {
+        return if let Some(nodes) = self.nodes {
+            Box::new(
+                nodes.into_iter()
+                     .filter_map(identity)
+                     .flat_map(|r| r.languages)
+                     .flat_map(|l| l.edges)
+                     .flatten()
+                     .filter_map(identity)
+                     .map(|lang| Skill{
+                         name: lang.node.name.to_owned(),
+                         code_size: lang.size as u64,
+                         color: lang.node.color.as_ref().unwrap_or(&DEFAULT_COLOR.to_string()).to_string(),
+                     }))
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
+}
+
+
+fn extract_skills(data: repo_view::ResponseData) -> Vec<Skill> {
+    let personal = data.viewer.repositories;
+    let contributions = data.viewer.repositories_contributed_to;
+    let combined = personal.get_skills().chain(contributions.get_skills());
+    let skills: HashMap<String, Skill> = combined.fold(HashMap::new(), |mut map, skill| {
+        map.entry(skill.name.to_owned())
+           .and_modify(|s| s.add(&skill))
+           .or_insert(skill);
         map
     });
     skills.values().cloned().collect()
