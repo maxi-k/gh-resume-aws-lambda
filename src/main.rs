@@ -56,24 +56,21 @@ use std::collections::HashMap;
 use std::convert::identity;
 
 #[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 struct Skill {
     name: String,
     code_size: u64,
     color: String,
 }
 
-impl Skill {
-    fn add(&mut self, other: &Skill) {
-        self.code_size += other.code_size;
-    }
-}
-
 static DEFAULT_COLOR: &str = "#000";
 
 macro_rules! repos_to_skills {
-    ($nodes_iter:expr) => {
-        $nodes_iter
+    ($nodes:expr, $exclude:expr) => {
+        $nodes
+            .into_iter()
             .filter_map(identity)
+            .filter(|r| !$exclude.contains(&r.name.to_owned()))
             .flat_map(|r| r.languages)
             .flat_map(|l| l.edges)
             .flatten()
@@ -86,38 +83,13 @@ macro_rules! repos_to_skills {
     }
 }
 
-trait SkillSource {
-   fn get_skills(self) -> Box<dyn Iterator<Item = Skill>>;
-}
-
-impl SkillSource for repo_view::RepoViewViewerRepositories {
-
-    fn get_skills(self) -> Box<dyn Iterator<Item = Skill>> {
-        return match self.nodes {
-            Some(nodes) => Box::new(repos_to_skills!(nodes.into_iter())),
-            None => Box::new(std::iter::empty())
-        }
-    }
-}
-
-impl SkillSource for repo_view::RepoViewViewerRepositoriesContributedTo {
-
-    fn get_skills(self) -> Box<dyn Iterator<Item = Skill>> {
-        return match self.nodes {
-            Some(nodes) => Box::new(repos_to_skills!(nodes.into_iter())),
-            None => Box::new(std::iter::empty())
-        }
-    }
-}
-
-
-fn extract_skills(data: repo_view::ResponseData) -> Vec<Skill> {
-    let personal = data.viewer.repositories;
-    let contributions = data.viewer.repositories_contributed_to;
-    let combined = personal.get_skills().chain(contributions.get_skills());
+fn extract_skills(data: repo_view::ResponseData, exclude: HashSet<String>) -> Vec<Skill> {
+    let personal = repos_to_skills!(data.viewer.repositories.nodes.unwrap_or(vec![]) , &exclude);
+    let contributions = repos_to_skills!(data.viewer.repositories_contributed_to.nodes.unwrap_or(vec![]), &exclude);
+    let combined = personal.chain(contributions);
     let skills: HashMap<String, Skill> = combined.fold(HashMap::new(), |mut map, skill| {
         map.entry(skill.name.to_owned())
-           .and_modify(|s| s.add(&skill))
+           .and_modify(|s| s.code_size += skill.code_size)
            .or_insert(skill);
         map
     });
@@ -128,10 +100,12 @@ fn extract_skills(data: repo_view::ResponseData) -> Vec<Skill> {
 // Lambda Handler
 // --------------------------------------------------------------------------------
 use lambda::error::HandlerError;
+use std::collections::HashSet;
 
 #[derive(Deserialize, Clone)]
 struct APIRequest {
     top: Option<u16>,
+    exclude: Option<HashSet<String>>
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -145,11 +119,12 @@ fn request_handler(e: APIRequest, c: lambda::Context) -> Result<APIResponse, Han
         error!("Requesting zero github skills in request {}", c.aws_request_id);
         return Err("No skills requested.".into());
     }
+    let exclude = e.exclude.unwrap_or(HashSet::new());
     let repos = match fetch_repos(top) {
         Ok(value) => value,
         Err(err) => return Err(err.to_string().as_str().into()),
     };
-    let skills = extract_skills(repos);
+    let skills = extract_skills(repos, exclude);
     Ok(APIResponse { skills })
 }
 
@@ -170,21 +145,21 @@ mod tests {
     use super::*;
     #[test]
     fn handler_returns_ok_with_argument() {
-        let req = APIRequest { top: Some(2) };
+        let req = APIRequest { top: Some(2), exclude: None };
         let result = request_handler(req, Default::default());
         assert!(result.is_ok());
     }
 
     #[test]
     fn handler_returns_ok_without_argument() {
-        let req = APIRequest { top: None };
+        let req = APIRequest { top: None, exclude: None };
         let result = request_handler(req, Default::default());
         assert!(result.is_ok());
     }
 
     #[test]
     fn handler_returns_error_with_zero_argument() {
-        let req = APIRequest { top: Some(0) };
+        let req = APIRequest { top: Some(0), exclude: None };
         let result = request_handler(req, Default::default());
         assert!(result.is_err());
     }
