@@ -68,30 +68,34 @@ impl Skill {
     }
 }
 
+static DEFAULT_COLOR: &str = "#000";
+
+macro_rules! repos_to_skills {
+    ($nodes_iter:expr) => {
+        $nodes_iter
+            .filter_map(identity)
+            .flat_map(|r| r.languages)
+            .flat_map(|l| l.edges)
+            .flatten()
+            .filter_map(identity)
+            .map(|lang| Skill{
+                name: lang.node.name.to_owned(),
+                code_size: lang.size as u64,
+                color: lang.node.color.as_ref().unwrap_or(&DEFAULT_COLOR.to_string()).to_string(),
+            })
+    }
+}
+
 trait SkillSource {
    fn get_skills(self) -> Box<dyn Iterator<Item = Skill>>;
 }
 
-static DEFAULT_COLOR: &str = "#000";
-
 impl SkillSource for repo_view::RepoViewViewerRepositories {
 
     fn get_skills(self) -> Box<dyn Iterator<Item = Skill>> {
-        return if let Some(nodes) = self.nodes {
-            Box::new(
-                nodes.into_iter()
-                     .filter_map(identity)
-                     .flat_map(|r| r.languages)
-                     .flat_map(|l| l.edges)
-                     .flatten()
-                     .filter_map(identity)
-                     .map(|lang| Skill{
-                         name: lang.node.name.to_owned(),
-                         code_size: lang.size as u64,
-                         color: lang.node.color.as_ref().unwrap_or(&DEFAULT_COLOR.to_string()).to_string(),
-                     }))
-        } else {
-            Box::new(std::iter::empty())
+        return match self.nodes {
+            Some(nodes) => Box::new(repos_to_skills!(nodes.into_iter())),
+            None => Box::new(std::iter::empty())
         }
     }
 }
@@ -99,21 +103,9 @@ impl SkillSource for repo_view::RepoViewViewerRepositories {
 impl SkillSource for repo_view::RepoViewViewerRepositoriesContributedTo {
 
     fn get_skills(self) -> Box<dyn Iterator<Item = Skill>> {
-        return if let Some(nodes) = self.nodes {
-            Box::new(
-                nodes.into_iter()
-                     .filter_map(identity)
-                     .flat_map(|r| r.languages)
-                     .flat_map(|l| l.edges)
-                     .flatten()
-                     .filter_map(identity)
-                     .map(|lang| Skill{
-                         name: lang.node.name.to_owned(),
-                         code_size: lang.size as u64,
-                         color: lang.node.color.as_ref().unwrap_or(&DEFAULT_COLOR.to_string()).to_string(),
-                     }))
-        } else {
-            Box::new(std::iter::empty())
+        return match self.nodes {
+            Some(nodes) => Box::new(repos_to_skills!(nodes.into_iter())),
+            None => Box::new(std::iter::empty())
         }
     }
 }

@@ -20,9 +20,6 @@ query RepoView($top_repo: Int!, $top_lang: Int!) {
       nodes {
         name
         url
-        primaryLanguage {
-          name
-        }
         languages(first: $top_lang, orderBy: {field: SIZE, direction: DESC}) {
           edges {
             node {
