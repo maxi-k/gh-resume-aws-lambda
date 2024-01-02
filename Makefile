@@ -1,19 +1,18 @@
 all: clean build-lambda-release
 
+BINARY := target/lambda/bootstrap/bootstrap
+ZIP := target/lambda-rust.zip
+
 clean:
-	rm -rf target/lambda/release/bootstrap
-	rm -f target/lambda-rust.zip
+	rm -f $BINARY
+	rm -f $ZIP
 
-target/lambda/release/bootstrap:
-	docker run --rm \
-	  -v ${PWD}:/code \
-	  -v ${HOME}/.cargo/registry:/root/.cargo/registry \
-	  -v ${HOME}/.cargo/git:/root/.cargo/git \
-	  softprops/lambda-rust:0.2.7-rust-1.44.1
+$(BINARY):
+	cargo lambda build --release --arm64
 
-target/lambda-rust.zip: target/lambda/release/bootstrap
-	zip -j target/lambda-rust.zip ./target/lambda/release/bootstrap
+$(ZIP): $(BINARY)
+	zip -j $(ZIP) $(BINARY)
 
-build-lambda-release: target/lambda-rust.zip
+build-lambda-release: $(ZIP)
 
 .PHONY: all clean build-lambda-release 

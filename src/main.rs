@@ -1,15 +1,9 @@
-// AWS lambda runtime
-#[macro_use]
-extern crate lambda_runtime as lambda;
 // Serde JSON serializer
 #[macro_use]
 extern crate serde_derive;
-// Logging
+// logging
 #[macro_use]
-extern crate log;
-extern crate simple_logger;
-
-use std::error::Error;
+extern crate tracing;
 
 // --------------------------------------------------------------------------------
 // Load .env configuration at compile time
@@ -33,7 +27,7 @@ type URI = String;
 )]
 struct RepoView;
 
-fn fetch_repos(number: u16) -> Result<repo_view::ResponseData, Box<dyn Error>> {
+fn fetch_repos(number: u16) -> Result<repo_view::ResponseData, Box<dyn std::error::Error>> {
     let api_token = env!("GITHUB_API_TOKEN");
     let client = Client::builder().user_agent("Maxi").build()?;
     let query = RepoView::build_query(repo_view::Variables { top_repo: number as i64, top_lang: 7 });
@@ -99,7 +93,6 @@ fn extract_skills(data: repo_view::ResponseData, exclude: HashSet<String>) -> Ve
 // --------------------------------------------------------------------------------
 // Lambda Handler
 // --------------------------------------------------------------------------------
-use lambda::error::HandlerError;
 use std::collections::HashSet;
 
 #[derive(Deserialize, Clone)]
@@ -113,10 +106,10 @@ struct APIResponse {
     skills: Vec<Skill>,
 }
 
-fn request_handler(e: APIRequest, c: lambda::Context) -> Result<APIResponse, HandlerError> {
+fn request_handler(e: APIRequest) -> Result<APIResponse, lambda_http::Error> {
     let top = e.top.unwrap_or(50);
     if top == 0 {
-        error!("Requesting zero github skills in request {}", c.aws_request_id);
+        event!(tracing::Level::ERROR, "Requesting zero github skills");
         return Err("No skills requested.".into());
     }
     let exclude = e.exclude.unwrap_or(HashSet::new());
@@ -129,12 +122,27 @@ fn request_handler(e: APIRequest, c: lambda::Context) -> Result<APIResponse, Han
 }
 
 // --------------------------------------------------------------------------------
-// Main Entrypoint
+// lambda-specific code
 // --------------------------------------------------------------------------------
-fn main() -> Result<(), Box<dyn Error>> {
-    simple_logger::init_with_level(log::Level::Warn)?;
-    lambda!(request_handler);
-    Ok(())
+// AWS lambda runtime
+// use lambda_http::{run, service_fn, Body, Request, RequestExt, Response, Error};
+use lambda_runtime as aws;
+
+async fn function_handler(event: aws::LambdaEvent<APIRequest>) -> Result<APIResponse, aws::Error> {
+    request_handler(event.payload).map_err(|e| aws::Error::from(e.to_string()))
+}
+
+#[tokio::main]
+async fn main() -> Result<(), aws::Error> {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        // disable printing the name of the module in every log line.
+        .with_target(false)
+        // disabling time is handy because CloudWatch will add the ingestion time.
+        .without_time()
+        .init();
+
+    aws::run(aws::service_fn(function_handler)).await
 }
 
 // --------------------------------------------------------------------------------
@@ -146,21 +154,21 @@ mod tests {
     #[test]
     fn handler_returns_ok_with_argument() {
         let req = APIRequest { top: Some(2), exclude: None };
-        let result = request_handler(req, Default::default());
+        let result = request_handler(req);
         assert!(result.is_ok());
     }
 
     #[test]
     fn handler_returns_ok_without_argument() {
         let req = APIRequest { top: None, exclude: None };
-        let result = request_handler(req, Default::default());
+        let result = request_handler(req);
         assert!(result.is_ok());
     }
 
     #[test]
     fn handler_returns_error_with_zero_argument() {
         let req = APIRequest { top: Some(0), exclude: None };
-        let result = request_handler(req, Default::default());
+        let result = request_handler(req);
         assert!(result.is_err());
     }
 }

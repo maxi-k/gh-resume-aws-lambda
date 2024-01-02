@@ -9,8 +9,9 @@ TBD: Generate an image for the new github readmes.
 
 1. Generate a personal github access token in the [Settings View](https://github.com/settings/tokens/new).
 2. Create a `.env` file in the project root with content `GITHUB_API_TOKEN=[token]`
-3. Run `make all` to compile the project for aws lambda using docker. The docker daemon has to be running.
-4. Upload the resulting zip file `target/lambda-rust.zip` to your lambda.
+3. Install `cargo-lambda`: `pip[3] install cargo-lambda`
+4. Run `make all` to compile the project for aws lambda. 
+5. Upload the resulting zip file `target/lambda-rust.zip` to your lambda.
 
 ## Example Response
 
